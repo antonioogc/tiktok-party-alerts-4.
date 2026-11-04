@@ -2,11 +2,15 @@
 import express from "express";
 import http from "http";
 import { WebSocketServer } from "ws";
-import { TikTokLiveConnection, WebcastEvent } from "tiktok-live-connector";
+import {
+  TikTokLiveConnection,
+  WebcastEvent
+} from "tiktok-live-connector";
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
+
 const PORT = process.env.PORT || 10000;
 const USERNAME = process.env.TIKTOK_USERNAME || "buonarroti23";
 
@@ -20,59 +24,77 @@ function broadcast(data) {
   }
 }
 
-wss.on("connection", (socket) => {
-  socket.send(JSON.stringify({
-    type: "status",
-    text: "Panel preparado para @" + USERNAME
-  }));
-});
-
 let connected = false;
+let connection = null;
+
+function sendStatus(message) {
+  broadcast({
+    type: "status",
+    text: message
+  });
+}
 
 async function connectTikTok() {
   if (connected) return;
+
   connected = true;
 
   try {
-    const connection = new TikTokLiveConnection(USERNAME);
+    sendStatus("Conectando con @" + USERNAME + "...");
+
+    connection = new TikTokLiveConnection(USERNAME, {
+      processInitialData: false
+    });
 
     connection.on(WebcastEvent.GIFT, (data) => {
       broadcast({
         type: "gift",
-        user: data.user?.nickname || "Alguien",
-        gift: data.giftDetails?.giftName || "Regalo",
+        user: data.user?.nickname || data.user?.uniqueId || "Alguien",
+        gift: data.extendedGiftInfo?.name ||
+              data.giftDetails?.giftName ||
+              String(data.giftId || "Regalo"),
         repeat: data.repeatCount || 1
       });
     });
 
     connection.on("connected", () => {
-      broadcast({
-        type: "status",
-        text: "Conectado a @" + USERNAME
-      });
+      sendStatus("Conectado a @" + USERNAME);
     });
 
     connection.on("disconnected", () => {
       connected = false;
-      broadcast({
-        type: "status",
-        text: "TikTok desconectado"
-      });
+      connection = null;
+      sendStatus("TikTok desconectado");
+    });
+
+    connection.on("error", (error) => {
+      console.error("Error de TikTok:", error);
+      sendStatus("Error en la conexión con TikTok");
     });
 
     await connection.connect();
 
+    console.log("Conexión con TikTok establecida");
+
   } catch (error) {
     connected = false;
+    connection = null;
+
+    console.error("ERROR AL CONECTAR CON TIKTOK:");
     console.error(error);
-    broadcast({
-      type: "status",
-      text: "No se ha podido conectar con TikTok LIVE"
-    });
+
+    sendStatus("No se ha podido conectar con TikTok LIVE");
   }
 }
 
-wss.on("connection", connectTikTok);
+wss.on("connection", (socket) => {
+  socket.send(JSON.stringify({
+    type: "status",
+    text: "Panel preparado para @" + USERNAME
+  }));
+
+  connectTikTok();
+});
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log("Servidor iniciado en puerto " + PORT);
