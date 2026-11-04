@@ -1,0 +1,125 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>xxxaaaattt - Party Alerts</title>
+<style>
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle, #29205c, #090914);
+  color: white;
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+main {
+  width: 85%;
+  max-width: 550px;
+  padding: 25px;
+  border: 1px solid #4df6ff;
+  border-radius: 25px;
+  background: #101020;
+  box-shadow: 0 0 30px #4df6ff55;
+}
+h1 {
+  color: #4df6ff;
+  font-size: 55px;
+  text-shadow: 0 0 20px #4df6ff;
+}
+#alert {
+  padding: 35px 10px;
+  margin: 20px 0;
+  border-radius: 20px;
+  background: linear-gradient(135deg,#35145c,#161633);
+  border: 1px solid #ff4bd8;
+}
+.gift { font-size: 55px; }
+.who { color: #ffe66d; font-size: 25px; font-weight: bold; }
+.what { font-size: 20px; margin-top: 10px; }
+button {
+  padding: 14px 25px;
+  border: 0;
+  border-radius: 30px;
+  font-weight: bold;
+  cursor: pointer;
+  background: linear-gradient(90deg,#ff4bd8,#4df6ff);
+}
+</style>
+</head>
+<body>
+<main>
+  <h1>xxxaaaattt</h1>
+  <p>TIKTOK PARTY ALERTS</p>
+  <p id="status">Conectando...</p>
+
+  <section id="alert">
+    <div class="gift">🎁</div>
+    <div class="who">¡Bienvenido!</div>
+    <div class="what">Esperando regalos...</div>
+  </section>
+
+  <button onclick="test()">PROBAR ALERTA 🔊</button>
+</main>
+
+<script>
+const statusBox = document.getElementById("status");
+const alertBox = document.getElementById("alert");
+
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, c => ({
+    "&":"&amp;", "<":"&lt;", ">":"&gt;",
+    '"':"&quot;", "'":"&#39;"
+  }[c]));
+}
+
+function showGift(user, gift, repeat) {
+  alertBox.innerHTML =
+    `<div class="gift">🎁✨</div>
+     <div class="who">${escapeHTML(user)}</div>
+     <div class="what">ha enviado ${escapeHTML(gift)}
+     ${repeat > 1 ? " ×" + repeat : ""}</div>`;
+
+  alertBox.animate(
+    [
+      {transform:"scale(.8)", opacity:.5},
+      {transform:"scale(1.08)", opacity:1},
+      {transform:"scale(1)", opacity:1}
+    ],
+    {duration:600}
+  );
+}
+
+function test() {
+  showGift("Invitado de prueba", "Rosa", 1);
+}
+
+function connect() {
+  const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+  const socket = new WebSocket(protocol + "//" + location.host);
+
+  socket.onmessage = event => {
+    const data = JSON.parse(event.data);
+
+    if (data.type === "status") {
+      statusBox.textContent = data.text;
+    }
+
+    if (data.type === "gift") {
+      showGift(data.user, data.gift, data.repeat || 1);
+    }
+  };
+
+  socket.onclose = () => {
+    statusBox.textContent = "Reconectando...";
+    setTimeout(connect, 3000);
+  };
+}
+
+connect();
+</script>
+</body>
+</html>
